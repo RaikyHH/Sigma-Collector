@@ -285,6 +285,7 @@ def fetch_and_process_github_directory(api_dir_url: str, source_config_name: str
             if is_yaml_file:
                 file_download_url = item.get('download_url')
                 if not file_download_url:
+                    # ### KORREKTUR HIER ###
                     print(f"[{get_elapsed_time_str(overall_start_time)}]   No download URL for '{item_path[:90]}' in {source_config_name}.")
                     live_status["session_rules_skipped_other"] = live_status.get("session_rules_skipped_other", 0) + 1
                     live_status["session_rules_processed"] += 1
@@ -296,7 +297,7 @@ def fetch_and_process_github_directory(api_dir_url: str, source_config_name: str
                         cleaned_content = file_content.replace('\xa0', ' ').replace('\ufeff', '')
                         rule_data = yaml.safe_load(cleaned_content)
                         if isinstance(rule_data, dict) and rule_data.get('title'):
-                            store_rule(rule_data, cleaned_content, source_name, file_download_url, live_status, overall_start_time)
+                            store_rule(rule_data, cleaned_content, source_config_name, file_download_url, live_status, overall_start_time)
                         else:
                             print(f"[{get_elapsed_time_str(overall_start_time)}]   Defective rule '{item_path[:90]}' ({source_config_name}): Invalid content or no title.")
                             live_status["session_rules_skipped_defective"] = live_status.get("session_rules_skipped_defective", 0) + 1
