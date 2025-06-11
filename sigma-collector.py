@@ -9,6 +9,7 @@ import time
 import os
 import uuid
 import traceback
+import sys
 
 # --- Global Configuration ---
 CONFIG_FILE = 'config.json'
@@ -295,7 +296,7 @@ def fetch_and_process_github_directory(api_dir_url: str, source_config_name: str
                         cleaned_content = file_content.replace('\xa0', ' ').replace('\ufeff', '')
                         rule_data = yaml.safe_load(cleaned_content)
                         if isinstance(rule_data, dict) and rule_data.get('title'):
-                            store_rule(rule_data, cleaned_content, source_config_name, file_download_url, live_status, overall_start_time)
+                            store_rule(rule_data, cleaned_content, source_name, file_download_url, live_status, overall_start_time)
                         else:
                             print(f"[{get_elapsed_time_str(overall_start_time)}]   Defective rule '{item_path[:90]}' ({source_config_name}): Invalid content or no title.")
                             live_status["session_rules_skipped_defective"] = live_status.get("session_rules_skipped_defective", 0) + 1
@@ -402,12 +403,7 @@ def main():
     processes all enabled sources, and prints final statistics.
     """
     print("--- Sigma Rule Collector ---")
-    print("Starting...\nPress Enter to continue (or Ctrl+C to cancel).")
-    try:
-        input()
-    except KeyboardInterrupt:
-        print("\nStart cancelled by user.")
-        return
+    print("Starting collection process...")
 
     overall_start_time = time.time()
     live_status = {
