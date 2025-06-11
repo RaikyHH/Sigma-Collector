@@ -1,0 +1,16 @@
+[
+  {
+    "name": "SigmaHQ Rules (Full Repo)",
+    "url": "https://api.github.com/repos/SigmaHQ/sigma/contents/rules", 
+    "type": "github_repo_folder",
+    "enabled": true,
+    "github_token": "ghp_TOKEN"
+  },
+  {
+    "name": "Example Sigma Rules",
+    "url": "https://api.github.com/repos/example/sigma-rules/contents/",
+    "type": "github_repo_folder",
+    "enabled": true,
+    "github_token": "ghp_TOKEN" 
+  }
+]
