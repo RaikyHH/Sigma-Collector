@@ -186,6 +186,17 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Local configuration and output
+# IMPORTANT: Do not commit your config file with secrets!
+config.json
+
+# Generated database and rule files
+sigma_rules.db
+sigma_rules_files/
+
+# IDE/Editor specific settings
+.vscode/
+.idea/
 # Cursor
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
