@@ -91,6 +91,50 @@ python sigma_collector.py
 
 The script will ask you to press Enter before it starts processing.
 
+
+### Docker Usage (Recommended)
+
+Using Docker is the easiest and recommended way to run the application, as it requires no local Python setup and bundles all dependencies.
+
+**Prerequisites:**
+-   Docker must be installed on your system.
+
+**Instructions:**
+
+1.  **Create a Data Directory**
+
+    First, create a directory on your computer. This directory will hold your configuration and store all outputs (database and rule files).
+
+    ```bash
+    mkdir ~/sigma-collector-data
+    ```
+
+2.  **Create your `config.json`**
+
+    Inside the directory you just created (`~/sigma-collector-data`), create a file named `config.json` using the format described in the "Configuration" section of the main README.
+
+3.  **Set Permissions**
+
+    The container runs with a dedicated internal user for security reasons. You must grant this user permission to write to your data directory. Execute the following command:
+
+    ```bash
+    chmod 777 -R ~/sigma-collector-data
+    ```
+    *(This is necessary to allow the container to write the database and rule files into your local folder.)*
+
+4.  **Run the Container**
+
+    Now, run the Docker container with the following command. It will automatically pull the image from the GitHub Container Registry.
+
+    ```bash
+    docker run --rm -v ~/sigma-collector-data:/data ghcr.io/raikyhh/sigma-collector:latest
+    ```
+
+    -   `--rm`: Automatically removes the container after it finishes.
+    -   `-v ~/sigma-collector-data:/data`: Maps your local data directory to the `/data` directory inside the container.
+
+    After the run is complete, the `sigma_rules.db` database and the `sigma_rules_files/` directory will be located inside your `~/sigma-collector-data` folder.
+
 ## Output
 
 The script generates the following outputs in the same directory:
