@@ -10,6 +10,7 @@ import os
 import uuid
 import traceback
 import sys
+import argparse
 
 # --- Global Configuration ---
 CONFIG_FILE = 'config.json'
@@ -242,13 +243,13 @@ def store_rule(parsed_rule_data: dict, raw_rule_content: str, source_name: str, 
     
     time.sleep(0.005)
 
-
-def fetch_url_content(url: str, headers: dict, source_name: str, overall_start_time: float) -> str | None:
+def fetch_url_content(url: str, headers: dict, source_name: str, overall_start_time: float, proxies: dict = None) -> str | None:
     """
-    Fetches content from a given URL. Returns content as text or None on error.
+    Fetches content from a given URL, optionally via a proxy. 
+    Returns content as text or None on error.
     """
     try:
-        response = requests.get(url, timeout=REQUEST_TIMEOUT, headers=headers)
+        response = requests.get(url, timeout=REQUEST_TIMEOUT, headers=headers, proxies=proxies)
         response.raise_for_status()
         return response.text
     except requests.exceptions.RequestException as e:
@@ -258,11 +259,11 @@ def fetch_url_content(url: str, headers: dict, source_name: str, overall_start_t
         print(f"[{get_elapsed_time_str(overall_start_time)}]   Unexpected download error for {source_name} (URL: ...{url[-90:]}): {str(e_gen)[:150]}")
         return None
 
-def fetch_and_process_github_directory(api_dir_url: str, source_config_name: str, base_request_headers: dict, live_status: dict, overall_start_time: float):
+def fetch_and_process_github_directory(api_dir_url: str, source_config_name: str, base_request_headers: dict, live_status: dict, overall_start_time: float, proxies: dict = None):
     """
     Recursively fetches and processes rules from a GitHub repository folder.
     """
-    directory_content_text = fetch_url_content(api_dir_url, base_request_headers, source_config_name, overall_start_time)
+    directory_content_text = fetch_url_content(api_dir_url, base_request_headers, source_config_name, overall_start_time, proxies)
     if not directory_content_text:
         return
 
@@ -285,13 +286,12 @@ def fetch_and_process_github_directory(api_dir_url: str, source_config_name: str
             if is_yaml_file:
                 file_download_url = item.get('download_url')
                 if not file_download_url:
-                    # ### KORREKTUR HIER ###
                     print(f"[{get_elapsed_time_str(overall_start_time)}]   No download URL for '{item_path[:90]}' in {source_config_name}.")
                     live_status["session_rules_skipped_other"] = live_status.get("session_rules_skipped_other", 0) + 1
                     live_status["session_rules_processed"] += 1
                     continue
 
-                file_content = fetch_url_content(file_download_url, base_request_headers, source_config_name, overall_start_time)
+                file_content = fetch_url_content(file_download_url, base_request_headers, source_config_name, overall_start_time, proxies)
                 if file_content:
                     try:
                         cleaned_content = file_content.replace('\xa0', ' ').replace('\ufeff', '')
@@ -313,15 +313,14 @@ def fetch_and_process_github_directory(api_dir_url: str, source_config_name: str
             elif item.get('type') == 'dir':
                 dir_api_url = item.get('url')
                 if dir_api_url:
-                    fetch_and_process_github_directory(dir_api_url, source_config_name, base_request_headers, live_status, overall_start_time)
+                    fetch_and_process_github_directory(dir_api_url, source_config_name, base_request_headers, live_status, overall_start_time, proxies)
             time.sleep(0.005)
     except json.JSONDecodeError as e_json:
         print(f"[{get_elapsed_time_str(overall_start_time)}]   JSON Error for directory {source_config_name} (...{api_dir_url[-75:]}): {str(e_json)[:150]}")
     except Exception as e_outer:
         print(f"[{get_elapsed_time_str(overall_start_time)}]   General Error for directory {source_config_name} (...{api_dir_url[-75:]}): {str(e_outer)[:150]}")
 
-
-def process_source(source_config: dict, live_status: dict, overall_start_time: float):
+def process_source(source_config: dict, live_status: dict, overall_start_time: float, proxies: dict = None):
     """
     Processes a single source from the configuration file based on its type.
     """
@@ -336,10 +335,10 @@ def process_source(source_config: dict, live_status: dict, overall_start_time: f
         github_headers = {'User-Agent': USER_AGENT, 'Accept': 'application/vnd.github.v3+json'}
         if source_config.get('github_token'):
             github_headers['Authorization'] = f"token {source_config['github_token']}"
-        fetch_and_process_github_directory(source_url, source_name, github_headers, live_status, overall_start_time)
+        fetch_and_process_github_directory(source_url, source_name, github_headers, live_status, overall_start_time, proxies)
 
     elif source_type == 'single_file_yaml':
-        content = fetch_url_content(source_url, request_headers, source_name, overall_start_time)
+        content = fetch_url_content(source_url, request_headers, source_name, overall_start_time, proxies)
         if content:
             try:
                 cleaned_content = content.replace('\xa0', ' ').replace('\ufeff', '')
@@ -364,7 +363,7 @@ def process_source(source_config: dict, live_status: dict, overall_start_time: f
             live_status["session_rules_processed"] += 1
             
     elif source_type == 'raw_text_regex':
-        content = fetch_url_content(source_url, request_headers, source_name, overall_start_time)
+        content = fetch_url_content(source_url, request_headers, source_name, overall_start_time, proxies)
         if content:
             rule_pattern = re.compile(source_config.get('rule_regex', r"(?sm)(^title:.*?)(?=^title:|\Z)"))
             matches = list(rule_pattern.finditer(content))
@@ -397,12 +396,26 @@ def process_source(source_config: dict, live_status: dict, overall_start_time: f
 
     print(f"[{get_elapsed_time_str(overall_start_time)}] Source '{source_name}' completed.")
 
-
 def main():
     """
     Main entry point for the script. Handles configuration, initializes the database,
     processes all enabled sources, and prints final statistics.
     """
+
+    parser = argparse.ArgumentParser(description="Sigma Rule Collector")
+    parser.add_argument('--http-proxy', type=str, help='URL of the HTTP proxy (e.g., http://user:pass@host:port)')
+    parser.add_argument('--https-proxy', type=str, help='URL of the HTTPS proxy (e.g., https://user:pass@host:port)')
+    args = parser.parse_args()
+
+    proxies = {}
+    if args.http_proxy:
+        proxies['http'] = args.http_proxy
+    if args.https_proxy:
+        proxies['https'] = args.https_proxy
+    
+    if proxies:
+        print(f"Using proxies: {proxies}")
+
     print("--- Sigma Rule Collector ---")
     print("Starting collection process...")
 
@@ -458,7 +471,7 @@ def main():
             print(f"[{get_elapsed_time_str(overall_start_time)}] Found {len(enabled_sources)} active sources.")
             for i, source_cfg in enumerate(enabled_sources):
                 print(f"\n[{get_elapsed_time_str(overall_start_time)}] --- Starting Source {i+1}/{len(enabled_sources)} ---")
-                process_source(source_cfg, live_status, overall_start_time)
+                process_source(source_cfg, live_status, overall_start_time, proxies=proxies)
                 print(f"[{get_elapsed_time_str(overall_start_time)}] --- Finished Source {i+1}/{len(enabled_sources)} ---")
 
         if disabled_source_names:
