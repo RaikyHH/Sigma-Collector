@@ -10,7 +10,6 @@ import os
 import uuid
 import traceback
 import sys
-import argparse
 
 # --- Global Configuration ---
 CONFIG_FILE = 'config.json'
@@ -401,20 +400,15 @@ def main():
     Main entry point for the script. Handles configuration, initializes the database,
     processes all enabled sources, and prints final statistics.
     """
-
-    parser = argparse.ArgumentParser(description="Sigma Rule Collector")
-    parser.add_argument('--http-proxy', type=str, help='URL of the HTTP proxy (e.g., http://user:pass@host:port)')
-    parser.add_argument('--https-proxy', type=str, help='URL of the HTTPS proxy (e.g., https://user:pass@host:port)')
-    args = parser.parse_args()
-
-    proxies = {}
-    if args.http_proxy:
-        proxies['http'] = args.http_proxy
-    if args.https_proxy:
-        proxies['https'] = args.https_proxy
+    proxies = {
+        'http': os.environ.get('HTTP_PROXY'),
+        'https': os.environ.get('HTTPS_PROXY')
+    }
+    # Filter out None values so we don't pass empty proxy entries to requests
+    proxies = {key: value for key, value in proxies.items() if value}
     
     if proxies:
-        print(f"Using proxies: {proxies}")
+        print(f"Using system proxies: {list(proxies.keys())}")
 
     print("--- Sigma Rule Collector ---")
     print("Starting collection process...")
